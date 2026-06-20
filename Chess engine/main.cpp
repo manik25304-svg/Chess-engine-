@@ -79,6 +79,19 @@ void board_initialize(board& b){
     }
     
 }
+bool is_path_clear(board& b,int x1,int y1,int x2,int y2) {
+    int dx=(x2>x1)?1:((x2<x1)?-1:0);
+    int dy=(y2>y1)?1:((y2<y1)?-1:0);
+    
+    int x=x1+dx;
+    int y=y1+dy;
+    while (x != x2 || y != y2) {
+        if (b.a[x][y]!=0) return false;
+        x+=dx;
+        y+=dy;
+    }
+    return true;
+}
 
 int piece_position(string s){
     int x_index=0,yindex=0;
@@ -100,11 +113,103 @@ void display_board(board& b){
         cout << "\n";
     }
 }
+bool valid_pawn(board& b1,int x1,int y1,int x2,int y2,int p){
+    int dis=(p>0)? 1: -1;
+    int s=(p>0)? 1 : 6;
+    if(y1==y2 && x2==x1+dis && b1.a[x2][y2]==0) return true; // here x axis reffer to vertical line like lines from king to king at start of game move 1 step in forward direction
+    if(y1==y2 && x1==s && x2==x1+2*dis && b1.a[x1+1*dis][y1]==0 && b1.a[x1+2*dis][y1]==0 ) return true;
+    if (abs(y2-y1)==1 && x2==x1+dis){
+            if((b1.a[x1][y1]>0 && b1.a[x2][y2]<0)||(b1.a[x1][y1]<0 && b1.a[x2][y2]>0)) {
+                return true;
+            }
+        }
+    return false;
+}
+bool valid_rook(board& b1,int x1,int y1,int x2,int y2,int p){
+    if(x1!=x2 && y1!=y2) return false;
+    if (!is_path_clear(b1,x1,y1,x2,y2)) return false;
+    if((b1.a[x1][y1]>0 && b1.a[x2][y2]>0)||(b1.a[x1][y1]<0 && b1.a[x2][y2]<0)) return false;
+    return true;
+}
+bool valid_horse(board& b1,int x1,int y1,int x2,int y2,int p){
+    int dx=abs(x2-x1);
+    int dy=abs(y2-y1);
+    if(!((dx==2 && dy==1)||(dx==1 && dy==2))) return false;
+    if((b1.a[x1][y1]>0 && b1.a[x2][y2]>0)||(b1.a[x1][y1]<0 && b1.a[x2][y2]<0)) return false;
+    return true;
+}
 
-bool move_possible(board& b1,pieces& p1,int x1,int y1,int x2,int y2){
-    if(valid(b1,x1,y1,x2,y2)){
+bool valid_bishop(board& b1,int x1,int y1,int x2,int y2,int p){
+    int dx=abs(x2-x1);
+    int dy=abs(y2-y1);
+    if(dx!=dy) return false;
+    if(dx==0|| dy==0) return false;
+    if (!is_path_clear(b1,x1,y1,x2,y2)) return false;
+    if((b1.a[x1][y1]>0 && b1.a[x2][y2]>0)||(b1.a[x1][y1]<0 && b1.a[x2][y2]<0)) return false;
+    return true;
+}
+bool valid_queen(board& b1,int x1,int y1,int x2,int y2,int p){
+    return valid_rook(b1,x1,y1,x2,y2,p)||valid_bishop(b1,x1,y1,x2,y2,p);
+}
+bool valid_king(board& b1,int x1,int y1,int x2,int y2,int p){
+    int dx=abs(x2-x1);
+    int dy=abs(y2-y1);
+    if(dx>1|| dy>1) return false;
+    if(dx==0 && dy==0) return false;
+    if((b1.a[x1][y1]>0 && b1.a[x2][y2]>0)||(b1.a[x1][y1]<0 && b1.a[x2][y2]<0)) return false;
+    return true;
+}
+
+
+bool valid(board& b1,int x1,int y1,int x2,int y2){
+    int p=b1.a[x1][y1];
+    if(p==0) return false;
+    int pi=abs(p);
+    bool b=false;
+    switch(pi){
+        case 1:{ b=valid_pawn(b1,x1,y1,x2,y2,p);
+            break;
+        }
+        case 2:{ b=valid_rook(b1,x1,y1,x2,y2,p); break;}
+        case 3: {b=valid_horse(b1,x1,y1,x2,y2,p);break;}
+        case 4: {
+            b=valid_bishop(b1,x1,y1,x2,y2,p);break;
+        }
+        case 5: {
+            b=valid_queen(b1,x1,y1,x2,y2,p);break;
+        }
+        case 6:{
+            b=valid_king(b1,x1,y1,x2,y2,p);break;
+        }
+        default: b=false;
+    }
+    if(b){
         b1.a[x2][y2]=b1.a[x1][y1];
         b1.a[x1][y1]=0;
+        if(pi==1){
+            bool evolve=false;
+            if(p>0 && x2==7) evolve=true;
+            if(p<0 && x2==0) evolve=true;
+            if(evolve){
+                string s;
+                cout << "evolve to queen(q),rook(r),bishop(b),horse(h): " << endl;
+                cin >> s;
+                int col=(p>0) ? 1:-1;
+                switch(s[0]){
+                    case 'q': b1.a[x2][y2] =5*col; break;
+                    case 'r': b1.a[x2][y2] =2*col; break;
+                    case 'b': b1.a[x2][y2] =4*col; break;
+                    case 'h': b1.a[x2][y2] =3*col; break;
+                    default:  b1.a[x2][y2] =5*col; break;
+                }
+            }
+        }
+    }
+    return b;
+}
+
+bool move(board& b1,int x1,int y1,int x2,int y2){
+    if(valid(b1,x1,y1,x2,y2)){
         return true;
     }
     else{
@@ -113,7 +218,7 @@ bool move_possible(board& b1,pieces& p1,int x1,int y1,int x2,int y2){
     }
 }
 
-void startgame(board& b1,pieces& p1){
+void startgame(board& b1){
     string i,e;
     bool wt=true;
     while(true){
@@ -125,9 +230,13 @@ void startgame(board& b1,pieces& p1){
         int finale=piece_position(e);
         int x1=initial/10,x2=finale/10,y1=initial%10,y2=finale%10;
         int p=b1.a[x1][y1];
-        if(p==0) cout << "empty box no element exist" << endl;
-        else if((p>0 && !wt) || (p<0 && wt)) cout << "choosen opponent piece so we can not move" << endl;
-        if(move_possible(b1,p1,x1,y1,x2,y2)) wt=!wt;
+        if(p==0) {cout << "empty box no element exist" << endl;
+            continue;
+        }
+        else if((p>0 && !wt) || (p<0 && wt)) {
+            cout << "choosen opponent piece so we can not move" << endl;
+            continue;}
+        if(move(b1,x1,y1,x2,y2)) wt=!wt;
     }
 }
 
@@ -137,8 +246,7 @@ int main(){
     pieces p;
     piece_initialize(p);
     initialize_game(b1,p);
-    startgame(b1,p);
+    startgame(b1);
     
     
 }
-
