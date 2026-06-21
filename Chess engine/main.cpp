@@ -79,6 +79,7 @@ void board_initialize(board& b){
     }
     
 }
+
 bool is_path_clear(board& b,int x1,int y1,int x2,int y2) {
     int dx=(x2>x1)?1:((x2<x1)?-1:0);
     int dy=(y2>y1)?1:((y2<y1)?-1:0);
@@ -104,13 +105,21 @@ int piece_position(string s){
     if(s[0]=='g') x_index=6;
     if(s[0]=='h') x_index=7;
     yindex=s[1]-49;
-    return 10*x_index+yindex;
+    return x_index+ 10*yindex;
 }
 void display_board(board& b){
     for(int i=7;i>=0;i--){          // print black side at top
-        for(int j=0;j<8;j++)
-            cout << b.a[i][j] << "\t";
-        cout << "\n";
+        for(int j=0;j<8;j++){
+            int ele=abs(b.a[i][j]);
+            if(ele==0)
+                cout << "NULL" << "\t";
+            if(ele==1) cout << "PAWN" << "\t";
+            if(ele==2) cout << "ROOK" << "\t";
+            if(ele==3) cout << "HORS" << "\t";
+            if(ele==4) cout << "BISH" << "\t";
+            if(ele==5) cout << "QUEN" << "\t";
+            if(ele==6) cout << "KING" << "\t";}
+        cout << "\n\n";
     }
 }
 bool valid_pawn(board& b1,int x1,int y1,int x2,int y2,int p){
@@ -139,6 +148,74 @@ bool valid_horse(board& b1,int x1,int y1,int x2,int y2,int p){
     return true;
 }
 
+
+
+bool is_notsafe(board& b1,int x,int y,int p) {
+    if (p== 1) {
+        if(x-1>=0 && y-1>=0 && b1.a[x-1][y-1]==1) return true;
+        if(x-1>=0 && y+1<8 && b1.a[x-1][y+1]==1) return true;
+    } else {
+        if(x+1<8 && y-1>=0 && b1.a[x+1][y-1]==-1) return true;
+        if(x+1<8 && y+1<8 && b1.a[x+1][y+1]==-1) return true;
+    }
+    vector<int> hx={2, 2, 1, 1, -1, -1, -2, -2};
+    vector<int> hy={1, -1, 2, -2, 2, -2, 1, -1};
+    int h_val= 3*p;
+    for(int i=0; i<8; i++) {
+        int nx=x+hx[i],ny=y+hy[i];
+        if(nx>=0 && nx<8 && ny>=0 && ny<8 && b1.a[nx][ny] == h_val) return true;
+    }
+    vector<int> rx = {0, 0, 1, -1};
+    vector<int> ry = {1, -1, 0, 0};
+    int r_val=2*p,q_val=5*p;
+    for(int i=0; i<4; i++) {
+        int nx=x+rx[i],ny=y+ry[i];
+        while(nx>=0 && nx<8 && ny>=0 && ny<8) {
+            if(b1.a[nx][ny]!=0) {
+                if(b1.a[nx][ny]==r_val||b1.a[nx][ny]==q_val) return true;
+                break;
+            }
+            nx+=rx[i];
+            ny+=ry[i];
+        }
+    }
+    vector<int> bx={1,1,-1,-1};
+    vector<int> by={1,-1,1,-1};
+    int b_val=4*p;
+    for(int i=0;i<4;i++) {
+        int nx=x+bx[i],ny=y+by[i];
+        while(nx>=0 && nx<8 && ny>=0 && ny<8){
+            if(b1.a[nx][ny]!=0) {
+                if(b1.a[nx][ny]==b_val||b1.a[nx][ny]==q_val)return true;
+                break;
+            }
+            nx+=bx[i];
+            ny+=by[i];
+        }
+    }
+    int k_val=6*p;
+    for(int i=-1;i<=1;i++) {
+        for(int j=-1;j<=1;j++){
+            if(i==0 && j==0)continue;
+            int nx=x+i,ny=y+j;
+            if(nx>=0 && nx<8 && ny>=0 && ny<8 && b1.a[nx][ny]==k_val)return true;
+        }
+    }
+    return false;
+}
+
+bool check(board& b,int p) {
+    int x=-1,y=-1;
+    for(int i=0; i<8; i++) {
+        for(int j=0; j<8; j++) {
+            if(b.a[i][j]==6*p) {
+                x=i;y=j; break;
+            }}
+        if(x!=-1) break;
+    }
+    return is_notsafe(b,x,y,-p);
+}
+
 bool valid_bishop(board& b1,int x1,int y1,int x2,int y2,int p){
     int dx=abs(x2-x1);
     int dy=abs(y2-y1);
@@ -158,6 +235,24 @@ bool valid_king(board& b1,int x1,int y1,int x2,int y2,int p){
     if(dx==0 && dy==0) return false;
     if((b1.a[x1][y1]>0 && b1.a[x2][y2]>0)||(b1.a[x1][y1]<0 && b1.a[x2][y2]<0)) return false;
     return true;
+}
+
+bool draw(board& b1){
+    int n=0;
+    int horse=0,bishop=0;
+    for(int i=0; i<8; i++) {
+        for(int j=0; j<8; j++) {
+            int p=b1.a[i][j];
+            if (p!=0) {
+                n++;
+                if(abs(p)==3)horse++;
+                if(abs(p)==4)bishop++;
+            }
+        }
+    }
+    if (n==2)return true;
+    if (n==3 && (horse==1 || bishop==1))return true;
+    return false;
 }
 
 
@@ -184,8 +279,25 @@ bool valid(board& b1,int x1,int y1,int x2,int y2){
         default: b=false;
     }
     if(b){
+        int ele=b1.a[x2][y2];
         b1.a[x2][y2]=b1.a[x1][y1];
         b1.a[x1][y1]=0;
+        int x=-1,y=-1;
+        int side=(p>0) ? 1:-1;
+        for(int i=0;i<8;i++){
+            for(int j=0;j<8;j++){
+                if (b1.a[i][j]==6*side) {
+                    x=i;y=j; break;
+                        }
+                    }
+                    if(x!=-1) break;
+                }
+        bool notsafe=is_notsafe(b1,x,y,-side);
+        if (notsafe) {
+            b1.a[x1][y1]=b1.a[x2][y2];
+            b1.a[x2][y2]=ele;
+            return false;
+                }
         if(pi==1){
             bool evolve=false;
             if(p>0 && x2==7) evolve=true;
@@ -208,6 +320,21 @@ bool valid(board& b1,int x1,int y1,int x2,int y2){
     return b;
 }
 
+bool move_possible(board& b1,int p){
+    for(int i=0;i<8;i++){
+        for(int j=0;j<8;j++){
+            if(b1.a[i][j]*p<=0) continue;
+            for(int x=0;x<8;x++){
+                for(int y=0;y<8;y++){
+                    board b=b1;
+                    if(valid(b,i,j,x,y)) return true;
+                }
+            }
+            
+        }
+    }
+    return false;
+}
 bool move(board& b1,int x1,int y1,int x2,int y2){
     if(valid(b1,x1,y1,x2,y2)){
         return true;
@@ -223,6 +350,18 @@ void startgame(board& b1){
     bool wt=true;
     while(true){
         display_board(b1);
+        if(draw(b1)){
+            cout << "DRAW! Insufficient material to checkmate.\n";
+            break;}
+        int side=(wt)? 1:-1;
+        if(!move_possible(b1,side)) {
+                    if(check(b1,side)) {
+                        cout <<"CHECKMATE! "<< (wt?"Black":"White")<<" wins!\n";
+                    } else {
+                        cout << "STALEMATE! It's a draw!\n";
+                    }
+                    break;
+                }
         cout << (wt ? "white turn" : "black turn") << endl;
         cout << "p1 to p2" << endl;          // here peoplr enter initial position and final position they want
         cin >> i >> e;
